@@ -31,6 +31,7 @@ export default function ApplyPage() {
 
   const [step, setStep] = useState<Step>(getInitialStep);
   const [loading, setLoading] = useState(false);
+  const [isRejected, setIsRejected] = useState(false);
 
   // Step 1 form
   const [personalForm, setPersonalForm] = useState({
@@ -70,6 +71,16 @@ export default function ApplyPage() {
     if (user?.breStatus === 'passed' && step < 3) setStep(3);
   }, [user, step]);
 
+  // Handle automatic redirect from Step 2 to Step 3 on success
+  useEffect(() => {
+    if (step === 2 && !isRejected) {
+      const timer = setTimeout(() => {
+        setStep(3);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [step, isRejected]);
+
   // ── Step 1: Submit personal details ──────────────────────────────────────
   const handlePersonalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,12 +96,13 @@ export default function ApplyPage() {
         employmentMode: personalForm.employmentMode,
       });
       toast.success('Eligibility check passed! ✅');
+      setIsRejected(false);
       setStep(2);
-      setTimeout(() => setStep(3), 1800);
     } catch (err: unknown) {
       const e2 = err as { response?: { data?: { message?: string; breRejected?: boolean } } };
       if (e2.response?.data?.breRejected) {
         toast.error(e2.response.data.message || 'Eligibility check failed');
+        setIsRejected(true);
         setStep(2);
       } else {
         toast.error(e2.response?.data?.message || 'Server error');
@@ -205,9 +217,20 @@ export default function ApplyPage() {
       {/* ── STEP 2: BRE Result ── */}
       {step === 2 && (
         <Card style={{ textAlign: 'center', padding: 48 }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, color: '#22c55e', marginBottom: 8 }}>Eligibility Check Passed!</h2>
-          <p style={{ color: '#8b8ba7', fontSize: 14 }}>Redirecting to upload your salary slip...</p>
+          {isRejected ? (
+            <>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>❌</div>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#ef4444', marginBottom: 8 }}>Eligibility Check Failed</h2>
+              <p style={{ color: '#8b8ba7', fontSize: 14, marginBottom: 24 }}>Unfortunately, you do not meet our current eligibility criteria.</p>
+              <Button onClick={() => setStep(1)}>Go Back & Edit</Button>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#22c55e', marginBottom: 8 }}>Eligibility Check Passed!</h2>
+              <p style={{ color: '#8b8ba7', fontSize: 14 }}>Redirecting to upload your salary slip...</p>
+            </>
+          )}
         </Card>
       )}
 
